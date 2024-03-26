@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/bluenviron/gortsplib/v4"
@@ -21,7 +22,7 @@ import (
 )
 
 const (
-	rtspAuthRealm = "IPCAM"
+	rtspAuthRealm = "atm220"
 )
 
 type conn struct {
@@ -188,11 +189,14 @@ func (c *conn) handleAuthError(authErr error) (*base.Response, error) {
 	// 3) without credentials
 	// 4) with password and username
 	// therefore we must allow up to 3 failures
+
+	c.authMethods[0] = 2
 	if c.authFailures <= 3 {
 		return &base.Response{
 			StatusCode: base.StatusUnauthorized,
 			Header: base.Header{
-				"WWW-Authenticate": rtspauth.GenerateWWWAuthenticate(c.authMethods, rtspAuthRealm, c.authNonce),
+				"WWW-Authenticate": GenerateWWWAuthenticate2(c.authMethods, rtspAuthRealm, c.authNonce),
+				//"WWW-Authenticate2": rtspauth.GenerateWWWAuthenticate(c.authMethods, rtspAuthRealm, c.authNonce),
 			},
 		}, nil
 	}
@@ -213,4 +217,35 @@ func (c *conn) apiItem() *defs.APIRTSPConn {
 		BytesReceived: c.rconn.BytesReceived(),
 		BytesSent:     c.rconn.BytesSent(),
 	}
+}
+
+func GenerateWWWAuthenticate2(methods []headers.AuthMethod, realm string, nonce string) base.HeaderValue {
+	// Django 서버의 /auth 엔드포인트로 GET 요청을 생성
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", "http://127.0.0.1:8000/auth", nil)
+	if err != nil {
+		// 요청 생성 실패 처리
+		panic(err) // 실제 코드에서는 panic 대신 적절한 에러 처리를 해야 합니다.
+	}
+
+	// 요청 전송 및 응답 수신
+	resp, err := client.Do(req)
+	if err != nil {
+		// 요청 실패 처리
+		panic(err) // 실제 코드에서는 panic 대신 적절한 에러 처리를 해야 합니다.
+	}
+	defer resp.Body.Close()
+
+	// 응답 헤더에서 'Www-Authenticate' 값을 추출
+	wwwAuthenticateHeaders, ok := resp.Header["Www-Authenticate"]
+	if !ok || len(wwwAuthenticateHeaders) == 0 {
+		// 'Www-Authenticate' 헤더가 없는 경우 처리
+		panic("Www-Authenticate header is missing") // 실제 코드에서는 panic 대신 적절한 에러 처리를 해야 합니다.
+	}
+
+	// 추출한 'Www-Authenticate' 헤더 값을 HeaderValue 타입 변수에 저장
+	ret := make(base.HeaderValue, 1)
+	ret[0] = wwwAuthenticateHeaders[0] // 첫 번째 'Www-Authenticate' 헤더 값만 사용
+
+	return ret
 }

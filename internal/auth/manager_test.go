@@ -223,7 +223,7 @@ func TestAuthInternalRTSPDigest(t *testing.T) {
 	require.NoError(t, err)
 
 	s, err := auth.NewSender(
-		auth.GenerateWWWAuthenticate([]headers.AuthMethod{headers.AuthDigestMD5}, "IPCAM", "mynonce"),
+		auth.GenerateWWWAuthenticate([]headers.AuthMethod{headers.AuthDigestMD5}, "atm220", "mynonce"),
 		"myuser",
 		"mypass",
 	)

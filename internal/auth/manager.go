@@ -27,7 +27,7 @@ const (
 	// PauseAfterError is the pause to apply after an authentication failure.
 	PauseAfterError = 2 * time.Second
 
-	rtspAuthRealm    = "IPCAM"
+	rtspAuthRealm    = "atm220"
 	jwtRefreshPeriod = 60 * 60 * time.Second
 )
 

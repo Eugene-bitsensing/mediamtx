@@ -55,12 +55,12 @@ func TestSource(t *testing.T) {
 				Handler: &testServer{
 					onDescribe: func(ctx *gortsplib.ServerHandlerOnDescribeCtx,
 					) (*base.Response, *gortsplib.ServerStream, error) {
-						err := auth.Validate(ctx.Request, "testuser", "testpass", nil, nil, "IPCAM", nonce)
+						err := auth.Validate(ctx.Request, "testuser", "testpass", nil, nil, "atm220", nonce)
 						if err != nil {
 							return &base.Response{ //nolint:nilerr
 								StatusCode: base.StatusUnauthorized,
 								Header: base.Header{
-									"WWW-Authenticate": auth.GenerateWWWAuthenticate(nil, "IPCAM", nonce),
+									"WWW-Authenticate": auth.GenerateWWWAuthenticate(nil, "atm220", nonce),
 								},
 							}, nil, nil
 						}
@@ -181,12 +181,12 @@ func TestRTSPSourceNoPassword(t *testing.T) {
 	s := gortsplib.Server{
 		Handler: &testServer{
 			onDescribe: func(ctx *gortsplib.ServerHandlerOnDescribeCtx) (*base.Response, *gortsplib.ServerStream, error) {
-				err := auth.Validate(ctx.Request, "testuser", "", nil, nil, "IPCAM", nonce)
+				err := auth.Validate(ctx.Request, "testuser", "", nil, nil, "atm220", nonce)
 				if err != nil {
 					return &base.Response{ //nolint:nilerr
 						StatusCode: base.StatusUnauthorized,
 						Header: base.Header{
-							"WWW-Authenticate": auth.GenerateWWWAuthenticate(nil, "IPCAM", nonce),
+							"WWW-Authenticate": auth.GenerateWWWAuthenticate(nil, "atm220", nonce),
 						},
 					}, nil, nil
 				}

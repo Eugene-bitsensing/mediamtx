@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/bluenviron/mediamtx/internal/auth"
 	"github.com/bluenviron/mediamtx/internal/conf"
@@ -258,8 +259,8 @@ func (pm *pathManager) doFindPathConf(req defs.PathFindPathConfReq) {
 	authHeader := authHeaders[0] // 여기서는 첫 번째 Authorization 헤더만 사용
 	Method := (*req.AccessRequest.RTSPRequest).Method
 	// Django 인증 서버로 보낼 요청 생성
-	client := &http.Client{}
-	authReq, err := http.NewRequest(string(Method), "http://127.0.0.1:8000/auth", nil)
+	client := &http.Client{Timeout: time.Second * pm.authManager.ReadTimeout}
+	authReq, err := http.NewRequest(string(Method), pm.authManager.HTTPAddress, nil)
 	if err != nil {
 		// 요청 생성 중 오류 처리
 		req.Res <- defs.PathFindPathConfRes{Err: err}
@@ -306,8 +307,8 @@ func (pm *pathManager) doDescribe(req defs.PathDescribeReq) {
 	authHeader := authHeaders[0] // 여기서는 첫 번째 Authorization 헤더만 사용
 	Method := (*req.AccessRequest.RTSPRequest).Method
 	// Django 인증 서버로 보낼 요청 생성
-	client := &http.Client{}
-	authReq, err := http.NewRequest(string(Method), "http://127.0.0.1:8000/auth", nil)
+	client := &http.Client{Timeout: time.Second * pm.authManager.ReadTimeout}
+	authReq, err := http.NewRequest(string(Method), pm.authManager.HTTPAddress, nil)
 	if err != nil {
 		// 요청 생성 중 오류 처리
 		req.Res <- defs.PathDescribeRes{Err: err}
@@ -370,8 +371,8 @@ func (pm *pathManager) doAddReader(req defs.PathAddReaderReq) {
 		authHeader := authHeaders[0] // 여기서는 첫 번째 Authorization 헤더만 사용
 		Method := (*req.AccessRequest.RTSPRequest).Method
 		// Django 인증 서버로 보낼 요청 생성
-		client := &http.Client{}
-		authReq, err := http.NewRequest(string(Method), "http://127.0.0.1:8000/auth", nil)
+		client := &http.Client{Timeout: time.Second * pm.authManager.ReadTimeout}
+		authReq, err := http.NewRequest(string(Method), pm.authManager.HTTPAddress, nil)
 		if err != nil {
 			// 요청 생성 중 오류 처리
 			req.Res <- defs.PathAddReaderRes{Err: err}
@@ -435,8 +436,8 @@ func (pm *pathManager) doAddPublisher(req defs.PathAddPublisherReq) {
 		authHeader := authHeaders[0] // 여기서는 첫 번째 Authorization 헤더만 사용
 		Method := (*req.AccessRequest.RTSPRequest).Method
 		// Django 인증 서버로 보낼 요청 생성
-		client := &http.Client{}
-		authReq, err := http.NewRequest(string(Method), "http://127.0.0.1:8000/auth", nil)
+		client := &http.Client{Timeout: time.Second * pm.authManager.ReadTimeout}
+		authReq, err := http.NewRequest(string(Method), pm.authManager.HTTPAddress, nil)
 		if err != nil {
 			// 요청 생성 중 오류 처리
 			req.Res <- defs.PathAddPublisherRes{Err: err}

@@ -106,7 +106,7 @@ authInternalUsers:
 # }
 # If the response code is 20x, authentication is accepted, otherwise
 # it is discarded.
-authHTTPAddress: http://127.0.0.1:8000/auth/
+authHTTPAddress: http://127.0.0.1:8000/auth
 # Actions to exclude from HTTP-based authentication.
 # Format is the same as the one of user permissions.
 authHTTPExclude:

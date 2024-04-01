@@ -101,6 +101,7 @@ type APIRTSPConn struct {
 
 // APIRTSPConnsList is a list of RTSP connections.
 type APIRTSPConnsList struct {
+	Version   string         `json:"version"`
 	ItemCount int            `json:"itemCount"`
 	PageCount int            `json:"pageCount"`
 	Items     []*APIRTSPConn `json:"items"`
@@ -131,6 +132,7 @@ type APIRTSPSession struct {
 
 // APIRTSPSessionList is a list of RTSP sessions.
 type APIRTSPSessionList struct {
+	Version   string            `json:"version"`
 	ItemCount int               `json:"itemCount"`
 	PageCount int               `json:"pageCount"`
 	Items     []*APIRTSPSession `json:"items"`

@@ -343,7 +343,8 @@ func (s *Server) APIConnsList() (*defs.APIRTSPConnsList, error) {
 	defer s.mutex.RUnlock()
 
 	data := &defs.APIRTSPConnsList{
-		Items: []*defs.APIRTSPConn{},
+		Version: "1.0.0",
+		Items:   []*defs.APIRTSPConn{},
 	}
 
 	for _, c := range s.conns {
@@ -388,7 +389,8 @@ func (s *Server) APISessionsList() (*defs.APIRTSPSessionList, error) {
 	defer s.mutex.RUnlock()
 
 	data := &defs.APIRTSPSessionList{
-		Items: []*defs.APIRTSPSession{},
+		Version: "1.0.0",
+		Items:   []*defs.APIRTSPSession{},
 	}
 
 	for _, s := range s.sessions {

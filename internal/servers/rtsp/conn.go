@@ -155,7 +155,7 @@ func (c *conn) onDescribe(ctx *gortsplib.ServerHandlerOnDescribeCtx,
 		}
 
 		return &base.Response{
-			StatusCode: base.StatusBadRequest,
+			StatusCode: base.StatusUnauthorized,
 		}, nil, res.Err
 	}
 
@@ -224,23 +224,26 @@ func GenerateWWWAuthenticate2(methods []headers.AuthMethod, realm string, nonce 
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", "http://127.0.0.1:8000/auth", nil)
 	if err != nil {
-		// 요청 생성 실패 처리
-		panic(err) // 실제 코드에서는 panic 대신 적절한 에러 처리를 해야 합니다.
+		wwwAuthenticateHeaders := []string{" "}
+		ret := make(base.HeaderValue, 1)
+		ret[0] = wwwAuthenticateHeaders[0]
+		return ret
 	}
 
 	// 요청 전송 및 응답 수신
 	resp, err := client.Do(req)
 	if err != nil {
-		// 요청 실패 처리
-		panic(err) // 실제 코드에서는 panic 대신 적절한 에러 처리를 해야 합니다.
+		wwwAuthenticateHeaders := []string{" "}
+		ret := make(base.HeaderValue, 1)
+		ret[0] = wwwAuthenticateHeaders[0]
+		return ret
 	}
 	defer resp.Body.Close()
 
 	// 응답 헤더에서 'Www-Authenticate' 값을 추출
 	wwwAuthenticateHeaders, ok := resp.Header["Www-Authenticate"]
 	if !ok || len(wwwAuthenticateHeaders) == 0 {
-		// 'Www-Authenticate' 헤더가 없는 경우 처리
-		panic("Www-Authenticate header is missing") // 실제 코드에서는 panic 대신 적절한 에러 처리를 해야 합니다.
+		wwwAuthenticateHeaders = []string{" "}
 	}
 
 	// 추출한 'Www-Authenticate' 헤더 값을 HeaderValue 타입 변수에 저장

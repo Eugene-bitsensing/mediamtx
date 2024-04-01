@@ -267,6 +267,12 @@ func (pm *pathManager) doFindPathConf(req defs.PathFindPathConfReq) {
 		return
 	}
 	authReq.Header.Add("Authorization", authHeader)
+	// 'HTTP_X_FORWARDED_PORT' 헤더에 '2443' 추가 -> 미들웨어는 이것으로 인증요청과 보고요청을 구분함
+	authReq.Header.Add("X-FORWARDED-PORT", "2443")
+
+	// IPv4 주소를 문자열로 변환하여 'HTTP_X_FORWARDED_FOR' 헤더에 추가
+	ipv4Str := req.AccessRequest.IP.To4().String() // []byte 형태의 IPv4를 문자열로 변환
+	authReq.Header.Add("X-FORWARDED-FOR", ipv4Str)
 
 	// 요청 전송 및 응답 수신
 	resp, err := client.Do(authReq)
@@ -302,7 +308,6 @@ func (pm *pathManager) doDescribe(req defs.PathDescribeReq) {
 		req.Res <- defs.PathDescribeRes{Err: err}
 		return
 	}
-
 	// Digest 인증 정보 추출
 	authHeader := authHeaders[0] // 여기서는 첫 번째 Authorization 헤더만 사용
 	Method := (*req.AccessRequest.RTSPRequest).Method
@@ -315,7 +320,12 @@ func (pm *pathManager) doDescribe(req defs.PathDescribeReq) {
 		return
 	}
 	authReq.Header.Add("Authorization", authHeader)
+	// 'HTTP_X_FORWARDED_PORT' 헤더에 '2443' 추가 -> 미들웨어는 이것으로 인증요청과 보고요청을 구분함
+	authReq.Header.Add("X-FORWARDED-PORT", "2443")
 
+	// IPv4 주소를 문자열로 변환하여 'HTTP_X_FORWARDED_FOR' 헤더에 추가
+	ipv4Str := req.AccessRequest.IP.To4().String() // []byte 형태의 IPv4를 문자열로 변환
+	authReq.Header.Add("X-FORWARDED-FOR", ipv4Str)
 	// 요청 전송 및 응답 수신
 	resp, err := client.Do(authReq)
 	if err != nil {
@@ -379,7 +389,12 @@ func (pm *pathManager) doAddReader(req defs.PathAddReaderReq) {
 			return
 		}
 		authReq.Header.Add("Authorization", authHeader)
+		// 'HTTP_X_FORWARDED_PORT' 헤더에 '2443' 추가 -> 미들웨어는 이것으로 인증요청과 보고요청을 구분함
+		authReq.Header.Add("X-FORWARDED-PORT", "2443")
 
+		// IPv4 주소를 문자열로 변환하여 'HTTP_X_FORWARDED_FOR' 헤더에 추가
+		ipv4Str := req.AccessRequest.IP.To4().String() // []byte 형태의 IPv4를 문자열로 변환
+		authReq.Header.Add("X-FORWARDED-FOR", ipv4Str)
 		// 요청 전송 및 응답 수신
 		resp, err := client.Do(authReq)
 		if err != nil {
@@ -444,7 +459,12 @@ func (pm *pathManager) doAddPublisher(req defs.PathAddPublisherReq) {
 			return
 		}
 		authReq.Header.Add("Authorization", authHeader)
+		// 'HTTP_X_FORWARDED_PORT' 헤더에 '2443' 추가 -> 미들웨어는 이것으로 인증요청과 보고요청을 구분함
+		authReq.Header.Add("X-FORWARDED-PORT", "2443")
 
+		// IPv4 주소를 문자열로 변환하여 'HTTP_X_FORWARDED_FOR' 헤더에 추가
+		ipv4Str := req.AccessRequest.IP.To4().String() // []byte 형태의 IPv4를 문자열로 변환
+		authReq.Header.Add("X-FORWARDED-FOR", ipv4Str)
 		// 요청 전송 및 응답 수신
 		resp, err := client.Do(authReq)
 		if err != nil {

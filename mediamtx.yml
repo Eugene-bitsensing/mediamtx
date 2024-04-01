@@ -61,9 +61,9 @@ authMethod: internal
 authInternalUsers:
   # Default unprivileged user.
   # Username. 'any' means any user, including anonymous ones.
-- user: eugene
+- user: dummy_user
   # Password. Not used in case of 'any' user.
-  pass: bts0115!!!
+  pass: dummy_password
   # IPs or networks allowed to use this user. An empty list means any IP.
   ips: []
   # List of permissions.
@@ -136,7 +136,7 @@ authJWTJWKS:
 # Global settings -> API
 
 # Enable controlling the server through the API.
-api: no
+api: yes
 # Address of the API listener.
 apiAddress: :9997
 

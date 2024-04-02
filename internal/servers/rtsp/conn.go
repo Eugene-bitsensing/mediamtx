@@ -1,7 +1,6 @@
 package rtsp
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -142,10 +141,13 @@ func (c *conn) onDescribe(ctx *gortsplib.ServerHandlerOnDescribeCtx,
 
 	if res.Err != nil {
 		var terr auth.Error
-		if errors.As(res.Err, &terr) {
-			res, err := c.handleAuthError(terr)
-			return res, nil, err
-		}
+
+		//if errors.As(res.Err, &terr) {
+		// error 타입체크 삭제
+		res, err := c.handleAuthError(terr)
+		return res, nil, err
+
+		/*}
 
 		var terr2 defs.PathNoOnePublishingError
 		if errors.As(res.Err, &terr2) {
@@ -157,6 +159,7 @@ func (c *conn) onDescribe(ctx *gortsplib.ServerHandlerOnDescribeCtx,
 		return &base.Response{
 			StatusCode: base.StatusUnauthorized,
 		}, nil, res.Err
+		*/
 	}
 
 	if res.Redirect != "" {

@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"sort"
 	"sync"
@@ -80,6 +81,10 @@ type pathManager struct {
 	chAddPublisher chan defs.PathAddPublisherReq
 	chAPIPathsList chan pathAPIPathsListReq
 	chAPIPathsGet  chan pathAPIPathsGetReq
+}
+
+type Error struct {
+	Message string
 }
 
 func (pm *pathManager) initialize() {
@@ -248,15 +253,18 @@ func (pm *pathManager) doFindPathConf(req defs.PathFindPathConfReq) {
 
 	// 외부 Digest 인증
 	// Authorization 헤더가 존재하는지 확인
+	var authHeader string
 	authHeaders, ok := (*req.AccessRequest.RTSPRequest).Header["Authorization"]
 	if !ok || len(authHeaders) == 0 {
-		err = pm.authManager.Authenticate(req.AccessRequest.ToAuthRequest())
-		req.Res <- defs.PathFindPathConfRes{Err: err}
-		return
+		//err = pm.authManager.Authenticate(req.AccessRequest.ToAuthRequest())
+		//req.Res <- defs.PathFindPathConfRes{Err: err}
+		//return
+		authHeader = "" // Authorization 헤더가 없는 경우 빈 문자열 할당
+	} else {
+		authHeader = authHeaders[0] // 첫 번째 Authorization 헤더 할당
 	}
 
 	// Digest 인증 정보 추출
-	authHeader := authHeaders[0] // 여기서는 첫 번째 Authorization 헤더만 사용
 	Method := (*req.AccessRequest.RTSPRequest).Method
 	// Django 인증 서버로 보낼 요청 생성
 	client := &http.Client{Timeout: time.Second * pm.authManager.ReadTimeout}
@@ -284,9 +292,9 @@ func (pm *pathManager) doFindPathConf(req defs.PathFindPathConfReq) {
 	defer resp.Body.Close()
 
 	// 응답 처리 예시 (실제 응답에 따라 수정 필요)
-	// 여기서는 상태 코드가 200이 아닐 경우 에러로 간주
 	if resp.StatusCode == http.StatusUnauthorized {
-		err := fmt.Errorf("authentication failed with status code: %d", resp.StatusCode)
+		err := auth.Error{Message: "authentication failed"}
+		//err := fmt.Errorf("authentication failed with status code: %d", resp.StatusCode)
 		req.Res <- defs.PathFindPathConfRes{Err: err}
 		return
 	}
@@ -301,21 +309,29 @@ func (pm *pathManager) doDescribe(req defs.PathDescribeReq) {
 		return
 	}
 	// Digest 인증
+	log.Printf("start digest to : %v", pm.authManager.HTTPAddress) // 중요한 오류 상태 정보 출력
+
 	// Authorization 헤더가 존재하는지 확인
 	authHeaders, ok := (*req.AccessRequest.RTSPRequest).Header["Authorization"]
+
+	var authHeader string
 	if !ok || len(authHeaders) == 0 {
-		err = pm.authManager.Authenticate(req.AccessRequest.ToAuthRequest())
-		req.Res <- defs.PathDescribeRes{Err: err}
-		return
+		//err = pm.authManager.Authenticate(req.AccessRequest.ToAuthRequest())
+		//req.Res <- defs.PathDescribeRes{Err: err}
+		//return
+		authHeader = "" // Authorization 헤더가 없는 경우 빈 문자열 할당
+	} else {
+		authHeader = authHeaders[0] // 첫 번째 Authorization 헤더 할당
 	}
+
 	// Digest 인증 정보 추출
-	authHeader := authHeaders[0] // 여기서는 첫 번째 Authorization 헤더만 사용
 	Method := (*req.AccessRequest.RTSPRequest).Method
 	// Django 인증 서버로 보낼 요청 생성
 	client := &http.Client{Timeout: time.Second * pm.authManager.ReadTimeout}
 	authReq, err := http.NewRequest(string(Method), pm.authManager.HTTPAddress, nil)
 	if err != nil {
 		// 요청 생성 중 오류 처리
+		log.Printf("Error 1 creating request: %v", err) // 중요한 오류 상태 정보 출력
 		req.Res <- defs.PathDescribeRes{Err: err}
 		return
 	}
@@ -326,22 +342,26 @@ func (pm *pathManager) doDescribe(req defs.PathDescribeReq) {
 	// IPv4 주소를 문자열로 변환하여 'HTTP_X_FORWARDED_FOR' 헤더에 추가
 	ipv4Str := req.AccessRequest.IP.To4().String() // []byte 형태의 IPv4를 문자열로 변환
 	authReq.Header.Add("X-FORWARDED-FOR", ipv4Str)
+	log.Printf("Created request: %v", authReq)
+
 	// 요청 전송 및 응답 수신
 	resp, err := client.Do(authReq)
 	if err != nil {
 		// 요청 전송 중 오류 처리
+		log.Printf("Error 2 creating request: %v", err) // 중요한 오류 상태 정보 출력
 		req.Res <- defs.PathDescribeRes{Err: err}
 		return
 	}
 	defer resp.Body.Close()
 
-	// 응답 처리 예시 (실제 응답에 따라 수정 필요)
-	// 여기서는 상태 코드가 200이 아닐 경우 에러로 간주
+	// 응답 처리 예시
 	if resp.StatusCode == http.StatusUnauthorized {
-		err := fmt.Errorf("authentication failed")
+		err := auth.Error{Message: "authentication failed"}
 		req.Res <- defs.PathDescribeRes{Err: err}
+		log.Printf("auth fail: %v", err) // 중요한 오류 상태 정보 출력
 		return
 	}
+	log.Printf("Received response with status code %d", resp.StatusCode)
 
 	// create path if it doesn't exist
 	if _, ok := pm.paths[req.AccessRequest.Name]; !ok {
@@ -370,15 +390,18 @@ func (pm *pathManager) doAddReader(req defs.PathAddReaderReq) {
 
 		// 외부 Digest 인증
 		// Authorization 헤더가 존재하는지 확인
+		var authHeader string
 		authHeaders, ok := (*req.AccessRequest.RTSPRequest).Header["Authorization"]
 		if !ok || len(authHeaders) == 0 {
-			err = pm.authManager.Authenticate(req.AccessRequest.ToAuthRequest())
-			req.Res <- defs.PathAddReaderRes{Err: err}
-			return
+			//err = pm.authManager.Authenticate(req.AccessRequest.ToAuthRequest())
+			//req.Res <- defs.PathAddReaderRes{Err: err}
+			//return
+			authHeader = "" // Authorization 헤더가 없는 경우 빈 문자열 할당
+		} else {
+			authHeader = authHeaders[0] // 첫 번째 Authorization 헤더 할당
 		}
 
 		// Digest 인증 정보 추출
-		authHeader := authHeaders[0] // 여기서는 첫 번째 Authorization 헤더만 사용
 		Method := (*req.AccessRequest.RTSPRequest).Method
 		// Django 인증 서버로 보낼 요청 생성
 		client := &http.Client{Timeout: time.Second * pm.authManager.ReadTimeout}
@@ -405,9 +428,9 @@ func (pm *pathManager) doAddReader(req defs.PathAddReaderReq) {
 		defer resp.Body.Close()
 
 		// 응답 처리 예시 (실제 응답에 따라 수정 필요)
-		// 여기서는 상태 코드가 200이 아닐 경우 에러로 간주
 		if resp.StatusCode == http.StatusUnauthorized {
-			err := fmt.Errorf("authentication failed with status code: %d", resp.StatusCode)
+			//err := fmt.Errorf("authentication failed with status code: %d", resp.StatusCode)
+			err := auth.Error{Message: "authentication failed"}
 			req.Res <- defs.PathAddReaderRes{Err: err}
 			return
 		}
@@ -429,26 +452,20 @@ func (pm *pathManager) doAddPublisher(req defs.PathAddPublisherReq) {
 	}
 
 	if !req.AccessRequest.SkipAuth {
-		/*
-			기존 내부인증
-				err = pm.authManager.Authenticate(req.AccessRequest.ToAuthRequest())
-				if err != nil {
-					req.Res <- defs.PathAddPublisherRes{Err: err}
-					return
-				}
-		*/
-
 		// 외부 Digest 인증
 		// Authorization 헤더가 존재하는지 확인
+		var authHeader string
 		authHeaders, ok := (*req.AccessRequest.RTSPRequest).Header["Authorization"]
 		if !ok || len(authHeaders) == 0 {
-			err = pm.authManager.Authenticate(req.AccessRequest.ToAuthRequest())
-			req.Res <- defs.PathAddPublisherRes{Err: err}
-			return
+			//err = pm.authManager.Authenticate(req.AccessRequest.ToAuthRequest())
+			///req.Res <- defs.PathAddPublisherRes{Err: err}
+			//return
+			authHeader = "" // Authorization 헤더가 없는 경우 빈 문자열 할당
+		} else {
+			authHeader = authHeaders[0] // 첫 번째 Authorization 헤더 할당
 		}
 
 		// Digest 인증 정보 추출
-		authHeader := authHeaders[0] // 여기서는 첫 번째 Authorization 헤더만 사용
 		Method := (*req.AccessRequest.RTSPRequest).Method
 		// Django 인증 서버로 보낼 요청 생성
 		client := &http.Client{Timeout: time.Second * pm.authManager.ReadTimeout}
@@ -475,9 +492,9 @@ func (pm *pathManager) doAddPublisher(req defs.PathAddPublisherReq) {
 		defer resp.Body.Close()
 
 		// 응답 처리 예시 (실제 응답에 따라 수정 필요)
-		// 여기서는 상태 코드가 200이 아닐 경우 에러로 간주
 		if resp.StatusCode == http.StatusUnauthorized {
-			err := fmt.Errorf("authentication failed with status code: %d", resp.StatusCode)
+			//err := fmt.Errorf("authentication failed with status code: %d", resp.StatusCode)
+			err := auth.Error{Message: "authentication failed"}
 			req.Res <- defs.PathAddPublisherRes{Err: err}
 			return
 		}

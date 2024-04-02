@@ -43,13 +43,22 @@ type conn struct {
 	onDisconnectHook func()
 	authNonce        string
 	authFailures     int
+	authPath         string
+}
+
+var defaultConfPaths = []string{
+	"rtsp-simple-server.yml",
+	"mediamtx.yml",
+	"/usr/local/etc/mediamtx.yml",
+	"/usr/etc/mediamtx.yml",
+	"/etc/mediamtx/mediamtx.yml",
 }
 
 func (c *conn) initialize() {
 	c.uuid = uuid.New()
 	c.created = time.Now()
-
 	c.Log(logger.Info, "opened")
+	c.authPath = c.parent.authPath
 
 	desc := defs.APIPathSourceOrReader{
 		Type: func() string {
@@ -198,7 +207,7 @@ func (c *conn) handleAuthError(authErr error) (*base.Response, error) {
 		return &base.Response{
 			StatusCode: base.StatusUnauthorized,
 			Header: base.Header{
-				"WWW-Authenticate": GenerateWWWAuthenticate2(c.authMethods, rtspAuthRealm, c.authNonce),
+				"WWW-Authenticate": GenerateWWWAuthenticate2(c.authMethods, rtspAuthRealm, c.authNonce, c.authPath),
 				//"WWW-Authenticate2": rtspauth.GenerateWWWAuthenticate(c.authMethods, rtspAuthRealm, c.authNonce),
 			},
 		}, nil
@@ -222,10 +231,11 @@ func (c *conn) apiItem() *defs.APIRTSPConn {
 	}
 }
 
-func GenerateWWWAuthenticate2(methods []headers.AuthMethod, realm string, nonce string) base.HeaderValue {
+func GenerateWWWAuthenticate2(methods []headers.AuthMethod, realm string, nonce string, path string) base.HeaderValue {
 	// Django 서버의 /auth 엔드포인트로 GET 요청을 생성
+
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "http://127.0.0.1:8000/auth", nil)
+	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {
 		wwwAuthenticateHeaders := []string{" "}
 		ret := make(base.HeaderValue, 1)

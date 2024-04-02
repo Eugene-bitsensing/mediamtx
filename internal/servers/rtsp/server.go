@@ -6,6 +6,8 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -81,6 +83,7 @@ type Server struct {
 	ExternalCmdPool     *externalcmd.Pool
 	PathManager         serverPathManager
 	Parent              serverParent
+	authPath            string
 
 	ctx       context.Context
 	ctxCancel func()
@@ -129,6 +132,29 @@ func (s *Server) Initialize() error {
 	err := s.srv.Start()
 	if err != nil {
 		return err
+	}
+
+	var fileConf *conf.Conf
+	var confPath string
+	var err2 error
+
+	currentDir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Failed to get current directory:", err)
+		currentDir = ""
+	}
+
+	// 현재 작업 디렉토리를 출력합니다.
+	log.Printf("Current working directory: %v", currentDir)
+
+	fileConf, confPath, err2 = conf.Load("", defaultConfPaths)
+	s.authPath = fileConf.AuthHTTPAddress
+
+	if err != nil {
+		s.authPath = "http://127.0.0.1:7080/auth"
+		log.Printf("fail to Load auth ip from %v, : %v use default :[%v] ", confPath, err2, s.authPath)
+	} else {
+		log.Printf("Load auth ip from %v, : %v", confPath, s.authPath)
 	}
 
 	s.Log(logger.Info, "listener opened on %s", printAddresses(s.srv))

@@ -4,8 +4,11 @@ package rtsp
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -94,6 +97,49 @@ type Server struct {
 	sessions  map[*gortsplib.ServerSession]*session
 }
 
+// LoadX509KeyPairWithPassphrase loads an X509 key pair using a passphrase
+func LoadX509KeyPairWithPassphrase(certFile, keyFile, passphrase string) (tls.Certificate, error) {
+	certPEMBlock, err := ioutil.ReadFile(certFile)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	keyPEMBlock, err := ioutil.ReadFile(keyFile)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	// Decode the PEM key
+	var keyDERBlock *pem.Block
+	var keyPEMBlocks []*pem.Block
+	for {
+		var block *pem.Block
+		block, keyPEMBlock = pem.Decode(keyPEMBlock)
+		if block == nil {
+			break
+		}
+		if block.Type == "ENCRYPTED PRIVATE KEY" {
+			keyDERBlock = block
+		} else {
+			keyPEMBlocks = append(keyPEMBlocks, block)
+		}
+	}
+
+	if keyDERBlock == nil {
+		return tls.Certificate{}, errors.New("no encrypted private key found")
+	}
+
+	// Decrypt the key using the passphrase
+	keyDER, err := x509.DecryptPEMBlock(keyDERBlock, []byte(passphrase))
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	keyPEMBlock = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: keyDER})
+
+	return tls.X509KeyPair(certPEMBlock, keyPEMBlock)
+}
+
 // Initialize initializes the server.
 func (s *Server) Initialize() error {
 	s.ctx, s.ctxCancel = context.WithCancel(context.Background())
@@ -121,9 +167,21 @@ func (s *Server) Initialize() error {
 	}
 
 	if s.IsTLS {
+		fmt.Println("Attempting to load certificate without passphrase")
 		cert, err := tls.LoadX509KeyPair(s.ServerCert, s.ServerKey)
 		if err != nil {
-			return err
+			fmt.Println("Failed to load certificate without passphrase:", err)
+			passphrase := os.Getenv("SECRET_KEY")
+			if passphrase == "" {
+				return errors.New("SECRET_KEY environment variable not set")
+			}
+			fmt.Println("Attempting to load certificate with passphrase from environment variable")
+			cert, err = LoadX509KeyPairWithPassphrase(s.ServerCert, s.ServerKey, passphrase)
+			if err != nil {
+				return fmt.Errorf("failed to load certificate with passphrase: %w", err)
+			}
+		} else {
+			fmt.Println("Successfully loaded certificate without passphrase")
 		}
 
 		s.srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}

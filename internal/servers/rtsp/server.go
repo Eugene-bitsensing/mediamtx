@@ -61,6 +61,51 @@ type serverParent interface {
 	logger.Writer
 }
 
+// LoadX509KeyPairWithPassphrase loads an X509 key pair using a passphrase
+// LoadX509KeyPairWithPassphrase loads an X509 key pair using a passphrase
+func LoadX509KeyPairWithPassphrase(certFile, keyFile, passphrase string) (tls.Certificate, error) {
+	certPEMBlock, err := ioutil.ReadFile(certFile)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("failed to read cert file: %w", err)
+	}
+
+	keyPEMBlock, err := ioutil.ReadFile(keyFile)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("failed to read key file: %w", err)
+	}
+
+	// Decode the PEM key
+	var keyDERBlock *pem.Block
+	var rest = keyPEMBlock
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		fmt.Println("Decoded PEM block type:", block.Type)
+		if block.Type == "ENCRYPTED PRIVATE KEY" || block.Type == "RSA PRIVATE KEY" {
+			keyDERBlock = block
+			break
+		}
+	}
+
+	if keyDERBlock == nil {
+		return tls.Certificate{}, errors.New("no encrypted private key found")
+	}
+
+	// Decrypt the key using the passphrase
+	keyDER, err := x509.DecryptPEMBlock(keyDERBlock, []byte(passphrase))
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("failed to decrypt PEM block: %w", err)
+	}
+
+	keyPEMBlock = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: keyDER})
+
+	return tls.X509KeyPair(certPEMBlock, keyPEMBlock)
+}
+
+
 // Server is a RTSP server.
 type Server struct {
 	Address             string
@@ -97,49 +142,7 @@ type Server struct {
 	sessions  map[*gortsplib.ServerSession]*session
 }
 
-// LoadX509KeyPairWithPassphrase loads an X509 key pair using a passphrase
-func LoadX509KeyPairWithPassphrase(certFile, keyFile, passphrase string) (tls.Certificate, error) {
-	certPEMBlock, err := ioutil.ReadFile(certFile)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-
-	keyPEMBlock, err := ioutil.ReadFile(keyFile)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-
-	// Decode the PEM key
-	var keyDERBlock *pem.Block
-	var keyPEMBlocks []*pem.Block
-	for {
-		var block *pem.Block
-		block, keyPEMBlock = pem.Decode(keyPEMBlock)
-		if block == nil {
-			break
-		}
-		if block.Type == "ENCRYPTED PRIVATE KEY" {
-			keyDERBlock = block
-		} else {
-			keyPEMBlocks = append(keyPEMBlocks, block)
-		}
-	}
-
-	if keyDERBlock == nil {
-		return tls.Certificate{}, errors.New("no encrypted private key found")
-	}
-
-	// Decrypt the key using the passphrase
-	keyDER, err := x509.DecryptPEMBlock(keyDERBlock, []byte(passphrase))
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-
-	keyPEMBlock = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: keyDER})
-
-	return tls.X509KeyPair(certPEMBlock, keyPEMBlock)
-}
-
+// Initialize initializes the server.
 // Initialize initializes the server.
 func (s *Server) Initialize() error {
 	s.ctx, s.ctxCancel = context.WithCancel(context.Background())
@@ -180,6 +183,7 @@ func (s *Server) Initialize() error {
 			if err != nil {
 				return fmt.Errorf("failed to load certificate with passphrase: %w", err)
 			}
+			fmt.Println("Successfully loaded certificate with passphrase")
 		} else {
 			fmt.Println("Successfully loaded certificate without passphrase")
 		}
@@ -189,7 +193,7 @@ func (s *Server) Initialize() error {
 
 	err := s.srv.Start()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to start RTSP server: %w", err)
 	}
 
 	var fileConf *conf.Conf
@@ -208,7 +212,7 @@ func (s *Server) Initialize() error {
 	fileConf, confPath, err2 = conf.Load("", defaultConfPaths)
 	s.authPath = fileConf.AuthHTTPAddress
 
-	if err != nil {
+	if err2 != nil {
 		s.authPath = "http://127.0.0.1:7080/auth"
 		log.Printf("fail to Load auth ip from %v, : %v use default :[%v] ", confPath, err2, s.authPath)
 	} else {
@@ -222,6 +226,7 @@ func (s *Server) Initialize() error {
 
 	return nil
 }
+
 
 // Log implements logger.Writer.
 func (s *Server) Log(level logger.Level, format string, args ...interface{}) {
